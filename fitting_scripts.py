@@ -28,12 +28,10 @@ def fit_func(x,specn,lcrop,models='da2014',mode=0):
 
 
 def fit_line(_sn, l_crop, model='da2014'):
-    """
-    Input _sn, l_crop <- Normalised spectrum & a cropped line list
+    """Input _sn, l_crop <- Normalised spectrum & a cropped line list
     Optional:
         model='da2014'  : 'da2014' or 'pier'
-    Calc and return chi2, list of arrays of spectra, and scaled models at lines
-    """
+    Calc and return chi2, list of arrays of spectra, and scaled models at lines """
     from scipy import interpolate
     #load normalised models and linearly interp models onto spectrum wave
     m_wave,m_flux_n,m_param = norm_models(model=model)
@@ -111,8 +109,7 @@ def norm_models(model='da2014'):
     """ Import Normalised WD Models
     Optional arguments:
         model='da2014': Which model grid to use: List shown below in mode_list
-    Return [out_m_wave,norm_m_flux,model_param]
-    """
+    Return [out_m_wave,norm_m_flux,model_param] """
     model_list = ['da2014','pier']
     if model not in model_list: raise wdfitError('Unknown "model" in norm_models')
     fn, d = '/wdfit.'+model+'.lst', '/WDModels_Koester.'+model+'_npy/'
@@ -129,15 +126,12 @@ def norm_models(model='da2014'):
 
 
 def norm_spectra(spectra, add_infinity=True):
-    """
-    Normalised spectra by DA WD continuum regions
-    spectra of form array([wave,flux,error]) (err not necessary so works on models)
-    only works on SDSS spectra region
+    """ Normalised spectra by DA WD continuum regions. Spec of form 
+    array([wav,flux,err]) (err not necessary) only works on SDSS spectra region
     Optional:
-        EDIT n_range_s to change whether region[j] is fitted for a peak or mean'd
+        Edit n_range_s to change whether region[j] is fitted for a peak or mean'd
         add_infinity=False : add a spline point at [inf,0]
-    returns spectra, cont_flux
-    """
+    returns spectra, cont_flux """
     from scipy import interpolate
     start_n=np.array([3770.,3796.,3835.,3895.,3995.,4130.,4490.,4620.,5070.,5200.,
                       6000.,7000.,7550.,8400.])
