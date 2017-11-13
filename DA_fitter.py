@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import fitting_scripts
 import fitting_scripts
-
 model_c='da2014'
 basedir='/Users/christophermanser/Storage/PhD_files/DESI/WDFitting'
 c = 299792.458 # Speed of light in km/s
@@ -18,7 +17,7 @@ spec_n, cont_flux = fitting_scripts.norm_spectra(spectra)
 line_crop = np.loadtxt(basedir+'/line_crop.dat')
 l_crop = line_crop[(line_crop[:,0]>spec_w.min()) & (line_crop[:,1]<spec_w.max())]
 #fit entire grid to find good starting point
-best=fitting_scripts.fit_line(spec_n, l_crop,model_in=None,model=model_c)
+best=fitting_scripts.fit_line(spec_n, l_crop,model=model_c)
 first_T, first_g = best[2][0], best[2][1]
 all_chi, all_TL  = best[4], best[3]
 

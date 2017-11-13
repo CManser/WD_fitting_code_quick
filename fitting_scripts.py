@@ -154,19 +154,16 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
     except: return [],[]
 
 
-def fit_line(_sn, l_crop, model_in=None, model='sdss'):
+def fit_line(_sn, l_crop, model='sdss'):
     """
-    Use norm models - can pass model_in from norm_models() with many spectra
     Input _sn, l_crop <- Normalised spectrum & a cropped line list
     Optional:
-        model_in=None   : Given model array
         model='da2014'  : 'da2014' or 'pier'
     Calc and return chi2, list of arrays of spectra, and scaled models at lines
     """
     from scipy import interpolate
     #load normalised models and linearly interp models onto spectrum wave
-    if model_in==None: m_wave,m_flux_n,m_param = norm_models(model=model)
-    else: m_wave,m_flux_n,m_param = model_in
+    m_wave,m_flux_n,m_param = norm_models(model=model)
     sn_w = _sn[:,0]
     m_flux_n_i = interpolate.interp1d(m_wave,m_flux_n,kind='linear')(sn_w)
     #Crops models and spectra in a line region, renorms models, calculates chi2
