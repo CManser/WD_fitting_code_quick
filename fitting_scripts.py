@@ -30,13 +30,6 @@ def air_to_vac(wavin):
     return wavin/(1.0 + 2.735182e-4 + 131.4182/wavin**2 + 2.76249e8/wavin**4)
 
 
-def _band_limits(band):
-    """ give mag band eg "sdss_r" & return outer limits for use in models etc"""
-    mag = np.loadtxt(basedir+'/sm/'+band+'.dat')
-    mag = mag[mag[:,1]>0.05]
-    return [mag[:,0].min(),mag[:,0].max()]
-
-
 def norm_spectra(spectra, add_infinity=True):
     """
     Normalised spectra by DA WD continuum regions
