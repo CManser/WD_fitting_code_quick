@@ -86,8 +86,10 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
         logg=np.array([4.00,4.25,4.50,4.75,5.00,5.25,5.50,5.75,6.00,6.25,6.50,
                        6.75,7.00,7.25,7.50,7.75,8.00,8.25,8.50,8.75,9.00,9.25,
                        9.50])
-    if (m_type=='pier') & (temp<1500. or temp>90000. or grav<6.5 or grav>9.5): return [],[]
-    elif (m_type=='da2014') & (temp<6000. or temp>100000. or grav<4.0 or grav>9.5): return [],[]
+    if (m_type=='pier') & (temp<1500. or temp>90000. or grav<6.5 or grav>9.5): 
+        return [],[]
+    elif (m_type=='da2014') & (temp<6000. or temp>100000. or grav<4.0 or grav>9.5): 
+        return [],[]
     # INTERPOLATION #
     g1,g2 = np.max(logg[logg<=grav]),np.min(logg[logg>=grav])
     if g1!=g2: g = (grav-g1)/(g2-g1)
@@ -95,7 +97,8 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
     t1,t2 = np.max(teff[teff<=temp]),np.min(teff[teff>=temp])
     if t1!=t2: t = (temp-t1)/(t2-t1)          
     else: t=0	
-    if m_type =='da2014': models = ['da%06d_%d_2.7.npy'%(i, j*100) for i in [t1,t2] for j in [g1,g2]]
+    if m_type =='da2014': models = ['da%06d_%d_2.7.npy'%(i, j*100) for i in [t1,t2] 
+                                    for j in [g1,g2]]
     else: models = ['WD_%.2f_%d.0.npy'%(j, i) for i in [t1,t2] for j in [g1,g2]]
     try:
         m11, m12 = np.load(dir_models+models[0]), np.load(dir_models+models[1])	
