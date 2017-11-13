@@ -2,153 +2,28 @@ import numpy as np
 basedir='/Users/christophermanser/Storage/PhD_files/DESI/WDFitting'
 
 
-def norm_models(quick=True, model='da2014', testing=False):
+def norm_models(model='da2014', testing=False):
     """ Import Normalised WD Models
     Optional arguments:
         quick=True   : Use presaved model array. Check is up to date
         model='da2014': Which model grid to use: List shown below in mode_list
         testing=False      : plot testing image
-    Return [model_list,model_param,orig_model_wave,orig_model_flux,tck_model,r_model]
+    Return [out_m_wave,norm_m_flux,model_param]
     """
-    if quick: # Use preloaded tables
-        model_list = ['da2014','pier','pier3D','pier3D_smooth','pier_rad','pier1D',
-                      'pier_smooth','pier_rad_smooth','pier_rad_fullres','pier_fullres']
-        if model not in model_list: raise wdfitError('Unknown "model" in norm_models')
-        fn, d = '/wdfit.'+model+'.lst', '/WDModels_Koester.'+model+'_npy/'
-        model_list  = np.loadtxt(basedir+fn, usecols=[0], dtype=np.string_).astype(str)
-        model_param = np.loadtxt(basedir+fn, usecols=[1,2])
-        m_spec = np.load(basedir+d+model_list[0])
-        m_wave = m_spec[:,0]
-        out_m_wave = m_wave[(m_wave>=3400)&(m_wave<=13000)]
-        norm_m_flux = np.load(basedir+'/norm_m_flux.'+model+'.npy')
-        #
-        if out_m_wave.shape[0] != norm_m_flux.shape[1]:
-            raise wdfitError('l and f arrays not correct shape in norm_models')
-    #Calculate
-    else:
-        from scipy import interpolate
-        #Load models from models()
-        model_list,model_param,m_wave,m_flux,r_model = models(quick=quick, model=model)
-        #Range over which DA is purely continuum
-        norm_range = np.loadtxt(basedir+'/wide_norm_range.dat', usecols=[0,1])
-        n_range_s = np.loadtxt(basedir+'/wide_norm_range.dat', usecols=[2], dtype='string')
-        #for each line, for each model, hold l and f of continuum
-        cont_l = np.empty([len(m_flux), len(norm_range)])
-        cont_f = np.empty([len(m_flux), len(norm_range)])
-        #for each zone
-        
-        for j in range(len(norm_range)):
-            if (norm_range[j,0] < m_wave.max()) & (norm_range[j,1] > m_wave.min()):
-                #crop
-                _f = m_flux.transpose()[(m_wave>=norm_range[j,0])&(m_wave<=norm_range[j,1])].transpose()
-                _l = m_wave[(m_wave>=norm_range[j,0])&(m_wave<=norm_range[j,1])]
-                
-                #interpolate region
-                print(norm_range[j,0], norm_range[j,1])
-                print(np.size(_l))
-                
-                tck = interpolate.interp1d(_l,_f,kind='cubic')
-                #interpolate onto 10* resolution
-                l = np.linspace(_l.min(),_l.max(),(len(_l)-1)*10+1)
-                f = tck(l)
-                #print f
-                #find maxima and save
-                if n_range_s[j]=='P':
-                    for k in range(len(f)):
-                        cont_l[k,j] = l[f[k]==f[k].max()][0]
-                        cont_f[k,j] = f[k].max()
-                #find mean and save
-                elif n_range_s[j]=='M':
-                    for k in range(len(f)):
-                        cont_l[k,j] = np.mean(l)
-                        cont_f[k,j] = np.mean(f[k])
-                else:
-                    print('Unknown n_range_s, ignoring')
-        #Continuum
-        if (norm_range.min()>3400) & (norm_range.max()<13000):
-            out_m_wave = m_wave[(m_wave>=3400)&(m_wave<=13000)]
-        else:
-            raise wdfitError('Normalised models cropped to too small a region')
-        cont_m_flux = np.empty([len(m_flux),len(out_m_wave)])
-        for i in range(len(m_flux)):
-            #not suitable for higher order fitting
-            tck = interpolate.splrep(cont_l[i],cont_f[i], t=[3885,4340,4900,6460], k=3)
-            cont_m_flux[i] = interpolate.splev(out_m_wave,tck)
-        #Normalised flux
-        norm_m_flux = m_flux.transpose()[(m_wave>=3400)&(m_wave<=13000)].transpose()/cont_m_flux
-        np.save(basedir+'/norm_m_flux.'+model+'.npy', norm_m_flux)
-        #
-        #testing
-        if testing:
-            import matplotlit.pyplot as plt
-            def p():
-                plt.figure(figsize=(7,9))
-                ax1 = pl.subplot(211)
-                llst = [3885, 4340, 4900, 6460]
-                for num in llst: plt.axvline(num, color='g',zorder=1)
-                plt.plot(m_wave,m_flux[i], color='grey', lw=0.8, zorder=2)
-                plt.plot(out_m_wave,cont_m_flux[i], 'b-', zorder=3)
-                plt.scatter(cont_l[i], cont_f[i], edgecolors='r', facecolors='none', zorder=20)
-                ax2 = plt.subplot(212, sharex=ax1)
-                plt.axhline([1], color='g')
-                plt.plot(out_m_wave, norm_m_flux[i], 'b-')
-                plt.ylim([0,2])
-                plt.xlim([3400,13000])
-                plt.show()
-                return
-            for i in np.where(model_param[:,1]==8.0)[0][::8]: p()
-    return [out_m_wave,norm_m_flux,model_param]
-
-
-def models(quick=True, quiet=True, band='sdss_r', model='da2014'):
-    """Import WD Models
-    Optional:
-        quick=True   : Use presaved model array. Check is up to date
-        quiet=True   : verbose
-        band='sdss_r': which mag band to calculate normalisation over (MEAN, not folded)
-        model: Which model grid to use
-    Return [model_list,model_param,orig_model_wave,orig_model_flux,tck_model,r_model]
-    """
-    from scipy import interpolate
-    model_list = ['da2014','pier','pier3D','pier3D_smooth','pier_rad','pier1D','pier_smooth','pier_rad_smooth','pier_rad_fullres','pier_fullres']
-    if model not in model_list: raise wdfitError('Unknown "model" in models')
-    else: fn, d = '/wdfit.'+model+'.lst', '/WDModels_Koester.'+model+'/'
-    #Load in table of all models
-    model_list = np.loadtxt(basedir+fn, usecols=[0], dtype=np.string_).astype(str)
+    model_list = ['da2014','pier']
+    if model not in model_list: raise wdfitError('Unknown "model" in norm_models')
+    fn, d = '/wdfit.'+model+'.lst', '/WDModels_Koester.'+model+'_npy/'
+    model_list  = np.loadtxt(basedir+fn, usecols=[0], dtype=np.string_).astype(str)
     model_param = np.loadtxt(basedir+fn, usecols=[1,2])
-    orig_model_wave = np.loadtxt(basedir+d+model_list[0], usecols=[0])
+    m_spec = np.load(basedir+d+model_list[0])
+    m_wave = m_spec[:,0]
+    out_m_wave = m_wave[(m_wave>=3400)&(m_wave<=13000)]
+    norm_m_flux = np.load(basedir+'/norm_m_flux.'+model+'.npy')
     #
-    if not quiet: print('Loading Models')
-    if quick:
-        orig_model_flux = np.load(basedir+'/orig_model_flux.'+model+'.npy')
-        if orig_model_wave.shape[0] != orig_model_flux.shape[1]:
-            raise wdfitError('l and f arrays not correct shape in models')
-    else:
-        orig_model_flux = np.empty([len(model_list),len(orig_model_wave)])
-        if model != 'db':
-            for i in range(len(model_list)):
-                if not quiet: print(i)
-                print(basedir+d+model_list[i])
-                orig_model_flux[i] = np.loadtxt(basedir+d+model_list[i],usecols=[1])
-        else:
-            from jg import spectra as _s
-            for i in range(len(model_list)):
-                if not quiet: print(i)
-                tmp = _s.spectra(fn = basedir+d+model_list[i], usecols=[0,1])
-                #Not uniform wavelength grid argh!
-                tmp.interpolate(orig_model_wave, kind='linear', save_res=True)
-                orig_model_flux[i] = tmp.f()
-        np.save(basedir+'/orig_model_flux.'+model+'.npy',orig_model_flux)
-    #Linearly interpolate Model onto Spectra points
-    tck_model = interpolate.interp1d(orig_model_wave,orig_model_flux,kind='linear')
-    #Only calculate r model once
-    band_lims = _band_limits(band)
-    r_model = np.mean(orig_model_flux.transpose()[((orig_model_wave>=band_lims[0])&(orig_model_wave<=band_lims[1]))].transpose(),axis=1)
-    #
-    print(orig_model_wave)
-    print(orig_model_flux)
-    return [model_list,model_param,orig_model_wave,orig_model_flux,r_model]
-
+    if out_m_wave.shape[0] != norm_m_flux.shape[1]:
+        raise wdfitError('l and f arrays not correct shape in norm_models')
+    return [out_m_wave,norm_m_flux,model_param]
+    
 
 def corr3d(temperature,gravity,ml2a=0.8,testing=False):
     """ Determines the 3D correction (Tremblay et al. 2013, 559, A104)
@@ -200,7 +75,10 @@ def corr3d(temperature,gravity,ml2a=0.8,testing=False):
             axes = [ax1, ax2]
             tmp_t = ['teff_corr', 'logg_corr']
             for i in range(len(axes)):
-                for j in range(len(tmp_g)): axes[i].plot(teff[where(logg==tmp_g[j])],teff_corr[tmp_t[i]][where(logg==tmp_g[j])],tmp_s[j],label='logg = %.1f'%(tmp_g[j]),lw=0.5)
+                for j in range(len(tmp_g)): 
+                    axes[i].plot(teff[where(logg==tmp_g[j])],
+                                 teff_corr[tmp_t[i]][where(logg==tmp_g[j])],
+                                 tmp_s[j],label='logg = %.1f'%(tmp_g[j]),lw=0.5)
                 axes[i].legend(numpoints=1,ncol=1,loc=3, fontsize=7)
                 axes[i]._set_xlabel('Teff')
                 axes[i]._set_ylabel(tmp_t[i])
@@ -305,7 +183,7 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
     models are saved as a numpy array to increase speed"""
     # PARAMETERS # 
     dir_models = basedir + '/WDModels_Koester.'+m_type+'_npy/'
-    if m_type=="pier" or m_type=="pier_fullres":
+    if m_type=="pier":
         teff=np.array([1500.,1750.,2000.,2250.,2500.,2750.,3000.,3250.,3500.,
                        3750.,4000.,4250.,4500.,4750.,5000.,5250.,5500.,6000.,
                        6500.,7000.,7500.,8000.,8500.,9000.,9500.,10000.,10500.,
@@ -314,20 +192,6 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
                        35000.,40000.,45000.,50000.,55000.,60000.,65000.,70000.,
                        75000.,80000.,85000.,90000.])
         logg=np.array([6.50,7.00,7.50,7.75,8.00,8.25,8.50,9.00,9.50])
-    elif m_type=="pier3D_smooth":	
-        teff=np.array([1500.,1750.,2000.,2250.,2500.,2750.,3000.,3250.,3500.,
-                       3750.,4000.,4250.,4500.,4750.,5000.,5250.,5500.,6000.,
-                       6500.,7000.,7500.,8000.,8500.,9000.,9500.,10000.,10500.,
-                       11000.,11500.,12000.,12500.,13000.,13500.,14000.,14500.,
-                       15000.,15500.,16000.,16500.,17000.,20000.,25000.,30000.,
-                       35000.,40000.,45000.,50000.,55000.,60000.,65000.,70000.,
-                       75000.,80000.,85000.,90000.])
-        logg=np.array([7.00,7.50,8.00,8.50,9.00])
-    elif m_type=="pier_smooth" or m_type=="pier_rad" or m_type=="pier_rad_smooth":	
-        teff=np.array([6000.,6500.,7000.,7500.,8000.,8500.,9000.,9500.,10000.,
-                       10500.,11000.,11500.,12000.,12500.,13000.,13500.,14000.,
-                       14500.,15000.])
-        logg=np.array([7.00,7.50,8.00,8.50,9.00])
     elif m_type=="da2014":
         teff=np.array([6000.,6250.,6500.,6750.,7000.,7250.,7500.,7750.,8000.,
                        8250.,8500.,8750.,9000.,9250.,9500.,9750.,10000.,10100.,
@@ -345,8 +209,7 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
         logg=np.array([4.00,4.25,4.50,4.75,5.00,5.25,5.50,5.75,6.00,6.25,6.50,
                        6.75,7.00,7.25,7.50,7.75,8.00,8.25,8.50,8.75,9.00,9.25,
                        9.50])
-    if (m_type=='pier3D') & (temp<6000. or temp>90000. or grav<6.5 or grav>9.): return [],[]
-    elif (m_type=='pier_rad' or m_type=='pier_smooth') & (temp<6000. or temp>15000. or grav<7.0 or grav>9.): return [],[]
+    if (m_type=='pier') & (temp<1500. or temp>90000. or grav<6.5 or grav>9.5): return [],[]
     elif (m_type=='da2014') & (temp<6000. or temp>100000. or grav<4.0 or grav>9.5): return [],[]
     # INTERPOLATION #
     g1,g2 = np.max(logg[logg<=grav]),np.min(logg[logg>=grav])
@@ -365,19 +228,18 @@ def interpolating_model_DA(temp,grav,m_type='da2014'):
     except: return [],[]
 
 
-def fit_line(_sn, l_crop, model_in=None, quick=True, model='sdss'):
+def fit_line(_sn, l_crop, model_in=None, model='sdss'):
     """
     Use norm models - can pass model_in from norm_models() with many spectra
     Input _sn, l_crop <- Normalised spectrum & a cropped line list
     Optional:
         model_in=None   : Given model array
-        quick=True      : Use presaved model array. Check is up to date
         model='da2014'  : 'da2014' or 'pier'
     Calc and return chi2, list of arrays of spectra, and scaled models at lines
     """
     from scipy import interpolate
     #load normalised models and linearly interp models onto spectrum wave
-    if model_in==None: m_wave,m_flux_n,m_param = norm_models(quick=quick, model=model)
+    if model_in==None: m_wave,m_flux_n,m_param = norm_models(model=model)
     else: m_wave,m_flux_n,m_param = model_in
     sn_w = _sn[:,0]
     m_flux_n_i = interpolate.interp1d(m_wave,m_flux_n,kind='linear')(sn_w)
